@@ -9,7 +9,6 @@ import yfinance as yf
 
 from src.config import RAW_DIR
 
-
 CVM_INF_DIARIO_URL = (
     "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{year}{month:02d}.zip"
 )
@@ -95,8 +94,8 @@ def fetch_market_prices(start_date: str, end_date: str) -> pd.DataFrame:
         progress=False,
     )
     if isinstance(raw.columns, pd.MultiIndex):
-        close = raw["Close"].reset_index().melt(
-            id_vars="Date", var_name="ticker", value_name="close"
+        close = (
+            raw["Close"].reset_index().melt(id_vars="Date", var_name="ticker", value_name="close")
         )
     else:
         close = raw[["Close"]].rename(columns={"Close": "close"}).reset_index()

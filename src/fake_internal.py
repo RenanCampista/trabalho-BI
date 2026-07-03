@@ -9,7 +9,6 @@ from faker import Faker
 
 from src.config import INTERNAL_DIR, SELECTED_FUNDS, PipelineConfig
 
-
 INVESTOR_PROFILES = ["Conservador", "Moderado", "Arrojado"]
 BRAZILIAN_CITIES = [
     ("Sao Paulo", "SP"),
@@ -115,4 +114,3 @@ def _choose_fund_by_profile(profile: str) -> dict:
     else:
         weights = [0.14, 0.30, 0.34, 0.22]
     return random.choices(SELECTED_FUNDS, weights=weights, k=1)[0]
-

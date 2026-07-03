@@ -19,4 +19,3 @@ def load_tables(tables: dict[str, pd.DataFrame], warehouse_url: str) -> None:
     with engine.begin() as connection:
         for table_name, df in tables.items():
             df.to_sql(table_name, connection, if_exists="replace", index=False)
-

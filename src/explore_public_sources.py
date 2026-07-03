@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import argparse
 
-import pandas as pd
-
 from src.config import PROCESSED_DIR, PipelineConfig
 from src.sources_public import (
     download_cvm_fund_reports,
@@ -63,4 +61,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

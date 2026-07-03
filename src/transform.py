@@ -39,7 +39,15 @@ def transform_internal(outputs: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
     )
 
     dim_customer = customers[
-        ["customer_id", "customer_name", "investor_profile", "city", "state", "birth_date", "signup_date"]
+        [
+            "customer_id",
+            "customer_name",
+            "investor_profile",
+            "city",
+            "state",
+            "birth_date",
+            "signup_date",
+        ]
     ].copy()
     dim_fund = funds[["fund_key", "fund_name", "fund_type", "risk_bucket"]].copy()
     fact_transactions = transactions[
@@ -64,7 +72,9 @@ def transform_internal(outputs: dict[str, pd.DataFrame]) -> dict[str, pd.DataFra
     }
 
 
-def transform_cvm_reports(cvm_reports: pd.DataFrame, registry: pd.DataFrame | None = None) -> pd.DataFrame:
+def transform_cvm_reports(
+    cvm_reports: pd.DataFrame, registry: pd.DataFrame | None = None
+) -> pd.DataFrame:
     df = cvm_reports.copy()
     df = df.rename(
         columns={
@@ -95,22 +105,26 @@ def transform_cvm_reports(cvm_reports: pd.DataFrame, registry: pd.DataFrame | No
     df = df.sort_values(["fund_cnpj", "date"])
     df["daily_return"] = df.groupby("fund_cnpj")["share_value"].pct_change()
 
-    monthly = (
-        df.groupby(["fund_cnpj", "month_start"], as_index=False)
-        .agg(
-            net_worth=("net_worth", "last"),
-            monthly_application=("daily_application", "sum"),
-            monthly_redemption=("daily_redemption", "sum"),
-            monthly_net_flow=("daily_net_flow", "sum"),
-            quota_holders=("quota_holders", "last"),
-            monthly_return=("daily_return", lambda s: (1 + s.dropna()).prod() - 1 if len(s.dropna()) else np.nan),
-            volatility=("daily_return", "std"),
-        )
+    monthly = df.groupby(["fund_cnpj", "month_start"], as_index=False).agg(
+        net_worth=("net_worth", "last"),
+        monthly_application=("daily_application", "sum"),
+        monthly_redemption=("daily_redemption", "sum"),
+        monthly_net_flow=("daily_net_flow", "sum"),
+        quota_holders=("quota_holders", "last"),
+        monthly_return=(
+            "daily_return",
+            lambda s: (1 + s.dropna()).prod() - 1 if len(s.dropna()) else np.nan,
+        ),
+        volatility=("daily_return", "std"),
     )
 
     if registry is not None and "CNPJ_FUNDO" in registry.columns:
-        names = registry.rename(columns={"CNPJ_FUNDO": "fund_cnpj", "DENOM_SOCIAL": "public_fund_name"})
-        monthly = monthly.merge(names[["fund_cnpj", "public_fund_name"]], on="fund_cnpj", how="left")
+        names = registry.rename(
+            columns={"CNPJ_FUNDO": "fund_cnpj", "DENOM_SOCIAL": "public_fund_name"}
+        )
+        monthly = monthly.merge(
+            names[["fund_cnpj", "public_fund_name"]], on="fund_cnpj", how="left"
+        )
     return monthly
 
 
@@ -134,7 +148,10 @@ def transform_market(market: pd.DataFrame) -> pd.DataFrame:
         df.groupby(["ticker", "month"], as_index=False)
         .agg(
             month_close=("close", "last"),
-            monthly_return=("daily_return", lambda s: (1 + s.dropna()).prod() - 1 if len(s.dropna()) else np.nan),
+            monthly_return=(
+                "daily_return",
+                lambda s: (1 + s.dropna()).prod() - 1 if len(s.dropna()) else np.nan,
+            ),
             volatility=("daily_return", "std"),
         )
         .rename(columns={"month": "month_start"})
@@ -145,4 +162,3 @@ def persist_processed(tables: dict[str, pd.DataFrame]) -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     for name, df in tables.items():
         df.to_csv(PROCESSED_DIR / f"{name}.csv", index=False)
-
