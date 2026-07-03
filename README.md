@@ -73,4 +73,4 @@ Os arquivos ficam em:
 
 ## Modelo
 
-O modelo dimensional esta em `docs/dbdiagram.dbml` para colar no dbdiagram.io.
+O modelo dimensional esta em `docs/modelo.png`.
