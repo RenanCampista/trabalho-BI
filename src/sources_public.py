@@ -17,6 +17,7 @@ BCB_SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados"
 
 
 def _download(url: str, path: Path, timeout: int = 90) -> Path:
+    """Baixa um arquivo para a pasta bronze publica, reutilizando-o quando ja existir."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.stat().st_size > 0:
         return path
@@ -27,6 +28,7 @@ def _download(url: str, path: Path, timeout: int = 90) -> Path:
 
 
 def download_cvm_fund_reports(start_year: int, end_year: int) -> list[Path]:
+    """Baixa arquivos ZIP mensais de informes diarios de fundos da CVM no periodo solicitado."""
     paths: list[Path] = []
     for year in range(start_year, end_year + 1):
         for month in range(1, 13):
@@ -37,10 +39,12 @@ def download_cvm_fund_reports(start_year: int, end_year: int) -> list[Path]:
 
 
 def download_cvm_registry() -> Path:
+    """Baixa o CSV de cadastro de fundos da CVM para a pasta bronze publica."""
     return _download(CVM_CADASTRO_URL, RAW_DIR / "cvm" / "cad_fi.csv")
 
 
 def load_cvm_reports(paths: list[Path]) -> pd.DataFrame:
+    """Le arquivos bronze de informes da CVM e retorna um DataFrame diario tipado."""
     csv_paths = [csv_path for path in paths for csv_path in unzip_if_needed(path)]
     frames = [
         pd.read_csv(path, sep=";", encoding="ISO-8859-1", decimal=",", low_memory=False)
@@ -56,6 +60,7 @@ def load_cvm_reports(paths: list[Path]) -> pd.DataFrame:
 
 
 def load_cvm_registry(path: Path) -> pd.DataFrame:
+    """Le o CSV bronze de cadastro da CVM e interpreta as colunas de data conhecidas."""
     df = pd.read_csv(path, sep=";", encoding="ISO-8859-1", low_memory=False)
     for col in ["DT_REG", "DT_CONST", "DT_CANCEL"]:
         if col in df.columns:
@@ -64,6 +69,7 @@ def load_cvm_registry(path: Path) -> pd.DataFrame:
 
 
 def fetch_bcb_series(code: int, name: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """Busca uma serie SGS do Banco Central e normaliza para colunas de data e valor."""
     params = {
         "formato": "json",
         "dataInicial": pd.to_datetime(start_date).strftime("%d/%m/%Y"),
@@ -78,6 +84,7 @@ def fetch_bcb_series(code: int, name: str, start_date: str, end_date: str) -> pd
 
 
 def fetch_macro_data(start_date: str, end_date: str) -> pd.DataFrame:
+    """Busca Selic e IPCA no Banco Central e combina as series por data."""
     selic = fetch_bcb_series(11, "selic_daily_pct", start_date, end_date)
     ipca = fetch_bcb_series(433, "ipca_monthly_pct", start_date, end_date)
     macro = pd.merge(selic, ipca, on="date", how="outer").sort_values("date")
@@ -86,6 +93,7 @@ def fetch_macro_data(start_date: str, end_date: str) -> pd.DataFrame:
 
 
 def fetch_market_prices(start_date: str, end_date: str) -> pd.DataFrame:
+    """Busca precos diarios ajustados de fechamento do BCRI11 e Ibovespa no Yahoo Finance."""
     raw = yf.download(
         tickers=["BCRI11.SA", "^BVSP"],
         start=start_date,
@@ -107,6 +115,7 @@ def fetch_market_prices(start_date: str, end_date: str) -> pd.DataFrame:
 
 
 def unzip_if_needed(path: Path) -> list[Path]:
+    """Extrai um arquivo ZIP quando necessario e retorna os caminhos dos CSVs para carga."""
     if path.suffix.lower() != ".zip":
         return [path]
     target_dir = path.with_suffix("")

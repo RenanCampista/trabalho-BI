@@ -25,6 +25,7 @@ BRAZILIAN_CITIES = [
 
 
 def generate_internal_data(config: PipelineConfig) -> dict[str, pd.DataFrame]:
+    """Gera a fonte bronze interna com clientes, contas e transacoes fake."""
     fake = Faker("pt_BR")
     Faker.seed(config.seed)
     random.seed(config.seed)
@@ -107,6 +108,7 @@ def generate_internal_data(config: PipelineConfig) -> dict[str, pd.DataFrame]:
 
 
 def _choose_fund_by_profile(profile: str) -> dict:
+    """Escolhe um fundo fake usando pesos que variam conforme o perfil de risco."""
     if profile == "Conservador":
         weights = [0.58, 0.24, 0.06, 0.12]
     elif profile == "Moderado":

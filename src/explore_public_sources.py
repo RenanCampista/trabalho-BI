@@ -14,6 +14,7 @@ from src.sources_public import (
 
 
 def main() -> None:
+    """Baixa as fontes publicas e grava um relatorio compacto de perfilamento."""
     parser = argparse.ArgumentParser(description="Gera um resumo exploratorio das fontes publicas.")
     parser.add_argument("--start-year", type=int, default=2023)
     parser.add_argument("--end-year", type=int, default=2025)

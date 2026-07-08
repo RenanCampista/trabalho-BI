@@ -15,7 +15,13 @@ from src.sources_public import (
 )
 from src.transform import (
     build_date_dimension,
-    persist_processed,
+    build_silver_cvm_daily,
+    build_silver_cvm_registry,
+    build_silver_internal,
+    build_silver_macro,
+    build_silver_market,
+    persist_gold,
+    persist_silver,
     transform_cvm_reports,
     transform_internal,
     transform_macro,
@@ -24,6 +30,7 @@ from src.transform import (
 
 
 def main() -> None:
+    """Executa o pipeline completo de dados de bronze para silver e gold."""
     parser = argparse.ArgumentParser(description="Executa o pipeline de dados do projeto de BI.")
     parser.add_argument("--start-year", type=int, default=2023)
     parser.add_argument("--end-year", type=int, default=2025)
@@ -39,9 +46,10 @@ def main() -> None:
     start_date = f"{config.start_year}-01-01"
     end_date = f"{config.end_year + 1}-01-01"
 
-    internal_raw = generate_internal_data(config)
-    tables = transform_internal(internal_raw)
-    tables["dim_date"] = build_date_dimension(start_date, f"{config.end_year}-12-31")
+    bronze_internal = generate_internal_data(config)
+    silver_tables = build_silver_internal(bronze_internal)
+    gold_tables = transform_internal(silver_tables)
+    gold_tables["dim_date"] = build_date_dimension(start_date, f"{config.end_year}-12-31")
 
     if not args.skip_public:
         cvm_paths = download_cvm_fund_reports(config.start_year, config.end_year)
@@ -51,12 +59,21 @@ def main() -> None:
         macro = fetch_macro_data(start_date, f"{config.end_year}-12-31")
         market = fetch_market_prices(start_date, end_date)
 
-        tables["fact_public_fund_monthly"] = transform_cvm_reports(cvm_reports, registry)
-        tables["fact_macro_monthly"] = transform_macro(macro)
-        tables["fact_market_monthly"] = transform_market(market)
+        silver_tables["silver_cvm_fund_daily"] = build_silver_cvm_daily(cvm_reports)
+        silver_tables["silver_cvm_registry"] = build_silver_cvm_registry(registry)
+        silver_tables["silver_macro_daily"] = build_silver_macro(macro)
+        silver_tables["silver_market_daily"] = build_silver_market(market)
 
-    persist_processed(tables)
-    load_tables(tables, config.warehouse_url)
+        gold_tables["fact_public_fund_monthly"] = transform_cvm_reports(
+            silver_tables["silver_cvm_fund_daily"],
+            silver_tables["silver_cvm_registry"],
+        )
+        gold_tables["fact_macro_monthly"] = transform_macro(silver_tables["silver_macro_daily"])
+        gold_tables["fact_market_monthly"] = transform_market(silver_tables["silver_market_daily"])
+
+    persist_silver(silver_tables)
+    persist_gold(gold_tables)
+    load_tables(gold_tables, config.warehouse_url)
     print(f"Pipeline concluido. Warehouse: {config.warehouse_url}")
 
 

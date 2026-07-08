@@ -9,6 +9,7 @@ from src.config import WAREHOUSE_DIR
 
 
 def load_tables(tables: dict[str, pd.DataFrame], warehouse_url: str) -> None:
+    """Carrega DataFrames gold no warehouse SQLite ou PostgreSQL configurado."""
     if warehouse_url.startswith("sqlite:///"):
         sqlite_path = Path(warehouse_url.replace("sqlite:///", ""))
         sqlite_path.parent.mkdir(parents=True, exist_ok=True)

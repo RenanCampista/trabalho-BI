@@ -6,6 +6,7 @@ Backend para preparar as fontes de dados do trabalho antes do dashboard:
 - indicadores macroeconomicos do Banco Central;
 - cotacoes de BCRI11 e Ibovespa via Yahoo Finance/yfinance;
 - dados internos fake de clientes, contas e movimentacoes;
+- pipeline medalhao com camadas bronze, silver e gold;
 - modelo dimensional e carga em SQLite ou PostgreSQL.
 
 ## Perguntas de negocio cobertas
@@ -28,6 +29,14 @@ Backend para preparar as fontes de dados do trabalho antes do dashboard:
 - PostgreSQL opcional como data warehouse;
 - Looker Studio conectado ao banco/export CSV;
 - dbdiagram.io para documentar o modelo dimensional.
+
+## Pipeline medalhao
+
+- `data/bronze/public`: arquivos publicos brutos baixados da CVM e demais fontes.
+- `data/bronze/internal`: fonte interna fake gerada com Faker.
+- `data/silver`: dados limpos, tipados, padronizados e ainda pouco agregados.
+- `data/gold`: dimensoes e fatos analiticos prontos para dashboard.
+- `warehouse`: banco SQLite ou PostgreSQL carregado com as tabelas gold.
 
 ## Como rodar
 
@@ -57,13 +66,6 @@ Ou em PostgreSQL:
 $env:WAREHOUSE_URL="postgresql+psycopg2://usuario:senha@localhost:5432/bi_fundos"
 python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 ```
-
-Os arquivos ficam em:
-
-- `data/raw`: dados brutos baixados;
-- `data/internal`: dados internos fake;
-- `data/processed`: tabelas dimensionais e fatos em CSV;
-- `warehouse/bi_fundos.sqlite`: banco demonstravel localmente.
 
 ## Fontes publicas
 

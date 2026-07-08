@@ -1,9 +1,9 @@
 .venv/
+.ruff_cache/
 __pycache__/
 *.pyc
 
-data/raw/
-data/internal/
-data/processed/
+data/bronze/
+data/silver/
+data/gold/
 warehouse/
-

@@ -5,15 +5,20 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT_DIR / "data"
-RAW_DIR = DATA_DIR / "raw"
-INTERNAL_DIR = DATA_DIR / "internal"
-PROCESSED_DIR = DATA_DIR / "processed"
+BRONZE_DIR = DATA_DIR / "bronze"
+SILVER_DIR = DATA_DIR / "silver"
+GOLD_DIR = DATA_DIR / "gold"
+RAW_DIR = BRONZE_DIR / "public"
+INTERNAL_DIR = BRONZE_DIR / "internal"
+PROCESSED_DIR = GOLD_DIR
 WAREHOUSE_DIR = ROOT_DIR / "warehouse"
 DEFAULT_WAREHOUSE_URL = f"sqlite:///{(WAREHOUSE_DIR / 'bi_fundos.sqlite').as_posix()}"
 
 
 @dataclass(frozen=True)
 class PipelineConfig:
+    """Parametros de execucao usados na ingestao, geracao fake e carga."""
+
     start_year: int = 2023
     end_year: int = 2025
     seed: int = 20261
