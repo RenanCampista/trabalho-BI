@@ -7,3 +7,5 @@ data/bronze/
 data/silver/
 data/gold/
 warehouse/
+
+.env

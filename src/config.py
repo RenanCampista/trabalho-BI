@@ -25,6 +25,7 @@ class PipelineConfig:
     n_customers: int = 900
     n_accounts: int = 1100
     n_transactions: int = 14000
+    max_public_funds: int = 80
     warehouse_url: str = DEFAULT_WAREHOUSE_URL
 
 

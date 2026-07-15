@@ -54,10 +54,16 @@ Execute o pipeline em SQLite:
 python -m src.pipeline --warehouse sqlite:///warehouse/bi_fundos.sqlite
 ```
 
+Por padrao, o pipeline carrega os 80 maiores fundos da CVM por patrimonio liquido no mes de referencia. Isso evita carregar a base inteira da CVM em memoria. Para reduzir ainda mais o consumo:
+
+```powershell
+python -m src.pipeline --max-public-funds 30
+```
+
 Gere tambem o perfil exploratorio das fontes publicas:
 
 ```powershell
-python -m src.explore_public_sources --start-year 2023 --end-year 2025
+python -m src.explore_public_sources --start-year 2023 --end-year 2025 --max-public-funds 80
 ```
 
 Ou em PostgreSQL:
@@ -76,3 +82,4 @@ python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 ## Modelo
 
 O modelo dimensional esta em `docs/modelo.png`.
+

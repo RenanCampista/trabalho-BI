@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path
 
 import pandas as pd
@@ -14,6 +15,17 @@ CVM_INF_DIARIO_URL = (
 )
 CVM_CADASTRO_URL = "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi.csv"
 BCB_SGS_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados"
+CVM_REPORT_USECOLS = [
+    "CNPJ_FUNDO",
+    "CNPJ_FUNDO_CLASSE",
+    "DT_COMPTC",
+    "VL_TOTAL",
+    "VL_QUOTA",
+    "VL_PATRIM_LIQ",
+    "CAPTC_DIA",
+    "RESG_DIA",
+    "NR_COTST",
+]
 
 
 def _download(url: str, path: Path, timeout: int = 90) -> Path:
@@ -43,14 +55,69 @@ def download_cvm_registry() -> Path:
     return _download(CVM_CADASTRO_URL, RAW_DIR / "cvm" / "cad_fi.csv")
 
 
-def load_cvm_reports(paths: list[Path]) -> pd.DataFrame:
-    """Le arquivos bronze de informes da CVM e retorna um DataFrame diario tipado."""
-    csv_paths = [csv_path for path in paths for csv_path in unzip_if_needed(path)]
+def select_reference_funds(paths: list[Path], max_funds: int) -> list[str]:
+    """Seleciona os maiores fundos do ultimo informe disponivel para limitar uso de memoria."""
+    if max_funds <= 0:
+        raise ValueError("max_funds deve ser maior que zero para evitar carga integral da CVM.")
+
+    for path in sorted(paths, reverse=True):
+        df = _read_cvm_report_file(path)
+        if df.empty or "CNPJ_FUNDO" not in df.columns:
+            continue
+        df = df.dropna(subset=["CNPJ_FUNDO", "VL_PATRIM_LIQ"])
+        if df.empty:
+            continue
+        return (
+            df.sort_values("VL_PATRIM_LIQ", ascending=False)["CNPJ_FUNDO"]
+            .drop_duplicates()
+            .head(max_funds)
+            .tolist()
+        )
+    return []
+
+
+def load_cvm_reports(paths: list[Path], fund_cnpjs: Iterable[str] | None = None) -> pd.DataFrame:
+    """Le informes bronze da CVM usando somente colunas e fundos necessarios."""
+    selected_funds = None if fund_cnpjs is None else set(fund_cnpjs)
+    frames = []
+    for path in paths:
+        df = _read_cvm_report_file(path)
+        if "CNPJ_FUNDO" not in df.columns:
+            continue
+        if selected_funds is not None:
+            df = df[df["CNPJ_FUNDO"].isin(selected_funds)]
+        if not df.empty:
+            frames.append(df)
+
+    if not frames:
+        return pd.DataFrame(columns=CVM_REPORT_USECOLS)
+    return pd.concat(frames, ignore_index=True)
+
+
+def _read_cvm_report_file(path: Path) -> pd.DataFrame:
+    """Le um arquivo mensal da CVM com colunas reduzidas e tipos ja padronizados."""
+    csv_paths = unzip_if_needed(path)
     frames = [
-        pd.read_csv(path, sep=";", encoding="ISO-8859-1", decimal=",", low_memory=False)
-        for path in csv_paths
+        pd.read_csv(
+            csv_path,
+            sep=";",
+            encoding="ISO-8859-1",
+            decimal=",",
+            usecols=lambda col: col in CVM_REPORT_USECOLS,
+            low_memory=False,
+        )
+        for csv_path in csv_paths
     ]
+    if not frames:
+        return pd.DataFrame(columns=CVM_REPORT_USECOLS)
+
     df = pd.concat(frames, ignore_index=True)
+    if "CNPJ_FUNDO" not in df.columns and "CNPJ_FUNDO_CLASSE" in df.columns:
+        df = df.rename(columns={"CNPJ_FUNDO_CLASSE": "CNPJ_FUNDO"})
+    if "CNPJ_FUNDO_CLASSE" in df.columns:
+        df = df.drop(columns=["CNPJ_FUNDO_CLASSE"])
+    if "CNPJ_FUNDO" not in df.columns or "DT_COMPTC" not in df.columns:
+        return pd.DataFrame(columns=CVM_REPORT_USECOLS)
     df["DT_COMPTC"] = pd.to_datetime(df["DT_COMPTC"], errors="coerce")
     numeric_cols = ["VL_TOTAL", "VL_QUOTA", "VL_PATRIM_LIQ", "CAPTC_DIA", "RESG_DIA", "NR_COTST"]
     for col in numeric_cols:
