@@ -1,3 +1,8 @@
+Project BI_Fundos {
+  database_type: 'PostgreSQL'
+  Note: 'Modelo logico dimensional. SQLite e PostgreSQL recebem as mesmas tabelas por meio do pipeline.'
+}
+
 Table dim_date {
   date_key int [pk]
   date date
@@ -29,7 +34,7 @@ Table fact_transactions {
   transaction_id int [pk]
   date_key int [ref: > dim_date.date_key]
   customer_id int [ref: > dim_customer.customer_id]
-  account_id int
+  account_id int [note: 'Identificador degenerado da conta']
   fund_key varchar [ref: > dim_fund.fund_key]
   transaction_type varchar
   amount decimal
@@ -41,7 +46,6 @@ Table fact_transactions {
 Table fact_public_fund_monthly {
   fund_cnpj varchar
   month_start date
-  public_fund_name varchar
   net_worth decimal
   monthly_application decimal
   monthly_redemption decimal
@@ -49,6 +53,7 @@ Table fact_public_fund_monthly {
   quota_holders int
   monthly_return decimal
   volatility decimal
+  public_fund_name varchar
 
   indexes {
     (fund_cnpj, month_start) [pk]
@@ -73,3 +78,99 @@ Table fact_market_monthly {
   }
 }
 
+Table gold_public_funds_monthly [note: 'Data mart mensal de fundos publicos para os graficos 1 e 2'] {
+  fund_cnpj varchar
+  month_start date
+  net_worth decimal
+  monthly_application decimal
+  monthly_redemption decimal
+  monthly_net_flow decimal
+  quota_holders int
+  monthly_return decimal
+  volatility decimal
+  public_fund_name varchar
+  return_index_base_100 decimal
+  accumulated_return decimal
+
+  indexes {
+    (fund_cnpj, month_start) [pk]
+  }
+}
+
+Table gold_risk_return [note: 'Data mart por fundo para o grafico 10'] {
+  fund_cnpj varchar [pk]
+  public_fund_name varchar
+  avg_monthly_return decimal
+  accumulated_return decimal
+  avg_daily_volatility decimal
+  last_net_worth decimal
+  total_net_flow decimal
+  months_count int
+  return_risk_ratio decimal
+}
+
+Table gold_internal_flows_monthly [note: 'Data mart mensal por fundo interno para os graficos 3 e 4'] {
+  month_start date
+  year int
+  month int
+  fund_key varchar
+  fund_name varchar
+  fund_type varchar
+  applications decimal
+  redemptions decimal
+  net_flow_amount decimal
+  transaction_count int
+
+  indexes {
+    (month_start, fund_key) [pk]
+  }
+}
+
+Table gold_investor_profile_fund_type [note: 'Data mart por tipo de fundo e perfil para o grafico 5'] {
+  fund_type varchar
+  investor_profile varchar
+  applications decimal
+  redemptions decimal
+  net_flow_amount decimal
+  investor_count int
+  transaction_count int
+
+  indexes {
+    (fund_type, investor_profile) [pk]
+  }
+}
+
+Table gold_city_investment [note: 'Data mart geografico para o grafico 6'] {
+  state varchar
+  city varchar
+  applications decimal
+  redemptions decimal
+  net_flow_amount decimal
+  investor_count int
+  transaction_count int
+
+  indexes {
+    (state, city) [pk]
+  }
+}
+
+Table gold_macro_funds_monthly [note: 'Data mart macroeconomico para os graficos 7 e 8'] {
+  month_start date [pk]
+  selic_monthly_pct decimal
+  ipca_monthly_pct decimal
+  renda_fixa_applications decimal
+  renda_fixa_redemptions decimal
+  renda_fixa_net_flow decimal
+  avg_public_fund_return decimal
+  avg_public_fund_volatility decimal
+  total_public_net_flow decimal
+}
+
+Table gold_market_comparison_monthly [note: 'Data mart BCRI11 versus Ibovespa para o grafico 9'] {
+  month_start date [pk]
+  bcri11_return decimal
+  ibovespa_return decimal
+  bcri11_minus_ibovespa_return decimal
+  bcri11_index_base_100 decimal
+  ibovespa_index_base_100 decimal
+}

@@ -27,7 +27,7 @@ Backend para preparar as fontes de dados do trabalho antes do dashboard:
 - Python/Pandas para ingestao e tratamento;
 - SQLite para demonstracao local;
 - PostgreSQL opcional como data warehouse;
-- Looker Studio conectado ao banco/export CSV;
+- Streamlit para visualizacao dos dados;
 - dbdiagram.io para documentar o modelo dimensional.
 
 ## Pipeline medalhao
@@ -77,7 +77,7 @@ python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 
 ## Dashboard Streamlit
 
-Tambem ha um dashboard local em Streamlit para validar e apresentar as 10 perguntas sem depender do Looker Studio.
+O dashboard Streamlit apresenta as respostas para as 10 perguntas de negocio.
 
 O Data Warehouse e a fonte analitica principal do dashboard. Portanto, execute primeiro o pipeline para
 tratar os dados e carregar as tabelas gold no SQLite:
@@ -106,29 +106,6 @@ O fluxo demonstrado pelo projeto fica:
 Fontes internas e publicas -> Bronze -> Silver -> Gold -> Data Warehouse -> Streamlit
 ```
 
-## Google Sheets e Looker Studio
-
-Ao final do pipeline, tambem e gerada uma planilha pronta para importar no Google Sheets:
-
-```text
-data/gold/google_sheets_dashboard.xlsx
-```
-
-Essa planilha contem abas da camada gold ja achatadas para dashboard, como:
-
-- `public_funds_monthly`
-- `risk_return`
-- `internal_flows_monthly`
-- `investor_profile_fund_type`
-- `city_investment`
-- `macro_funds_monthly`
-- `market_comparison_monthly`
-
-Importe esse arquivo no Google Sheets e conecte a planilha no Looker Studio. O prompt para orientar o Gemini na criacao dos graficos esta em:
-
-```text
-docs/prompt_gemini_looker_studio.md
-```
 ## Fontes publicas
 
 - CVM Dados Abertos: informes diarios e cadastro de fundos de investimento.
@@ -137,7 +114,10 @@ docs/prompt_gemini_looker_studio.md
 
 ## Modelo
 
-O modelo dimensional esta em `docs/modelo.png`.
+O modelo dimensional atualizado esta em `docs/dbdiagram.dbml`.
+
+A arquitetura completa do pipeline, Data Warehouse e dashboard esta documentada em
+`docs/architecture.md`.
 
 
 

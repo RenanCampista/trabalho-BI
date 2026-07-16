@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-from src.config import GOLD_DIR
-
-GOOGLE_SHEETS_WORKBOOK = GOLD_DIR / "google_sheets_dashboard.xlsx"
+MARKET_COMPARISON_COLUMNS = [
+    "month_start",
+    "bcri11_return",
+    "ibovespa_return",
+    "bcri11_minus_ibovespa_return",
+    "bcri11_index_base_100",
+    "ibovespa_index_base_100",
+]
 
 
 def build_dashboard_gold_tables(gold_tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
-    """Cria tabelas gold achatadas para consumo no Google Sheets e Looker Studio."""
+    """Cria data marts gold achatados para consumo pelo dashboard Streamlit."""
     dashboard_tables: dict[str, pd.DataFrame] = {}
 
     if "fact_public_fund_monthly" in gold_tables:
@@ -50,18 +53,6 @@ def build_dashboard_gold_tables(gold_tables: dict[str, pd.DataFrame]) -> dict[st
         )
 
     return dashboard_tables
-
-
-def export_google_sheets_workbook(
-    tables: dict[str, pd.DataFrame], output_path: Path = GOOGLE_SHEETS_WORKBOOK
-) -> Path:
-    """Exporta tabelas gold para uma planilha XLSX importavel no Google Sheets."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        for table_name, df in tables.items():
-            sheet_name = _to_sheet_name(table_name)
-            _prepare_for_spreadsheet(df).to_excel(writer, sheet_name=sheet_name, index=False)
-    return output_path
 
 
 def _build_public_funds_monthly(public_funds: pd.DataFrame) -> pd.DataFrame:
@@ -173,6 +164,9 @@ def _build_macro_funds_monthly(
 def _build_market_comparison(market: pd.DataFrame) -> pd.DataFrame:
     """Compara BCRI11 e Ibovespa em retorno mensal, volatilidade e indice base 100."""
     df = market.copy()
+    if df.empty:
+        return pd.DataFrame(columns=MARKET_COMPARISON_COLUMNS)
+
     df["month_start"] = pd.to_datetime(df["month_start"], errors="coerce")
     df = df.sort_values(["ticker", "month_start"])
     df["return_index_base_100"] = (
@@ -192,7 +186,11 @@ def _build_market_comparison(market: pd.DataFrame) -> pd.DataFrame:
     index_wide = index_wide.rename(
         columns={"BCRI11.SA": "bcri11_index_base_100", "^BVSP": "ibovespa_index_base_100"}
     )
-    return wide.merge(index_wide, on="month_start", how="left").sort_values("month_start")
+    result = wide.merge(index_wide, on="month_start", how="left")
+    for column in MARKET_COMPARISON_COLUMNS:
+        if column not in result.columns:
+            result[column] = np.nan
+    return result[MARKET_COMPARISON_COLUMNS].sort_values("month_start")
 
 
 def _build_risk_return(public_funds: pd.DataFrame) -> pd.DataFrame:
@@ -223,21 +221,6 @@ def _filter_named_public_funds(df: pd.DataFrame) -> pd.DataFrame:
     has_real_name = names.notna() & names.ne("") & names.ne(cnpjs)
     is_not_cnpj = ~names.str.fullmatch(cnpj_pattern, na=False)
     return df[has_real_name & is_not_cnpj].copy()
-
-
-def _prepare_for_spreadsheet(df: pd.DataFrame) -> pd.DataFrame:
-    """Converte valores para formatos amigaveis ao Google Sheets."""
-    result = df.copy()
-    for col in result.columns:
-        if pd.api.types.is_datetime64_any_dtype(result[col]):
-            result[col] = result[col].dt.strftime("%Y-%m-%d")
-    return result.replace([np.inf, -np.inf], np.nan)
-
-
-def _to_sheet_name(table_name: str) -> str:
-    """Gera nome de aba valido para XLSX a partir do nome da tabela."""
-    cleaned = table_name.removeprefix("gold_")
-    return cleaned[:31]
 
 
 def _has_tables(tables: dict[str, pd.DataFrame], required: list[str]) -> bool:
