@@ -60,12 +60,6 @@ Por padrao, o pipeline carrega os 80 maiores fundos da CVM por patrimonio liquid
 python -m src.pipeline --max-public-funds 30
 ```
 
-Gere tambem o perfil exploratorio das fontes publicas:
-
-```powershell
-python -m src.explore_public_sources --start-year 2023 --end-year 2025 --max-public-funds 80
-```
-
 Ou em PostgreSQL:
 
 ```powershell
@@ -118,6 +112,8 @@ O modelo dimensional atualizado esta em `docs/dbdiagram.dbml`.
 
 A arquitetura completa do pipeline, Data Warehouse e dashboard esta documentada em
 `docs/architecture.md`.
+
+O relatorio academico do projeto esta em `docs/relatorio_projeto_bi.md`.
 
 
 

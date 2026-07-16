@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import zipfile
 from collections.abc import Iterable
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -39,14 +40,41 @@ def _download(url: str, path: Path, timeout: int = 90) -> Path:
     return path
 
 
-def download_cvm_fund_reports(start_year: int, end_year: int) -> list[Path]:
-    """Baixa arquivos ZIP mensais de informes diarios de fundos da CVM no periodo solicitado."""
+def download_cvm_fund_reports(
+    start_year: int,
+    end_year: int,
+    as_of: date | None = None,
+) -> list[Path]:
+    """Baixa informes CVM publicados, sem solicitar meses futuros do ano corrente."""
+    if start_year > end_year:
+        raise ValueError("start_year nao pode ser maior que end_year.")
+
+    reference_date = as_of or date.today()
+    last_year = min(end_year, reference_date.year)
+    if start_year > last_year:
+        raise ValueError("O periodo solicitado comeca depois da data atual.")
+
     paths: list[Path] = []
-    for year in range(start_year, end_year + 1):
-        for month in range(1, 13):
+    for year in range(start_year, last_year + 1):
+        last_month = reference_date.month if year == reference_date.year else 12
+        for month in range(1, last_month + 1):
             url = CVM_INF_DIARIO_URL.format(year=year, month=month)
             path = RAW_DIR / "cvm" / f"inf_diario_fi_{year}{month:02d}.zip"
-            paths.append(_download(url, path))
+            try:
+                paths.append(_download(url, path))
+            except requests.HTTPError as exc:
+                response = exc.response
+                is_current_year_not_found = (
+                    year == reference_date.year
+                    and response is not None
+                    and response.status_code == 404
+                )
+                if not is_current_year_not_found:
+                    raise
+                print(
+                    f"[cvm] Informe {year}-{month:02d} ainda nao publicado; ignorando.",
+                    flush=True,
+                )
     return paths
 
 

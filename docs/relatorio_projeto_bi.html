@@ -1,0 +1,949 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatorio Projeto BI</title><style>
+@page { size: A4; margin: 18mm 16mm 18mm 18mm; }
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; color: #202124; font-size: 10.5pt; line-height: 1.5; max-width: 100%; margin: 0; }
+h1 { font-size: 24pt; text-align: center; margin: 25mm 10mm 12mm; color: #17324d; }
+h2 { font-size: 17pt; color: #17324d; border-bottom: 1px solid #9aa7b2; padding-bottom: 4px; margin-top: 24px; break-after: avoid; }
+h3 { font-size: 13pt; color: #315b7d; margin-top: 18px; break-after: avoid; }
+p { text-align: justify; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 8.7pt; break-inside: avoid; }
+th { background: #e8eef3; color: #17324d; text-align: left; }
+th, td { border: 1px solid #aeb8c2; padding: 5px 6px; vertical-align: top; }
+pre { background: #f4f6f8; border: 1px solid #d7dde3; padding: 10px; white-space: pre-wrap; font-size: 8.8pt; break-inside: avoid; }
+code { font-family: Consolas, monospace; }
+blockquote { border-left: 5px solid #d98b2b; background: #fff4e5; margin: 16px 0; padding: 10px 14px; }
+img { display: block; max-width: 100%; max-height: 195mm; margin: 14px auto; }
+hr { border: 0; border-top: 1px solid #aeb8c2; margin: 22px 0; }
+a { color: #245b85; text-decoration: none; }
+li { margin-bottom: 3px; }
+</style></head><body><h1 id="projeto-de-business-intelligence-para-gestao-de-fundos-de-investimento">Projeto de Business Intelligence para Gestão de Fundos de Investimento</h1>
+<p><strong>Universidade Federal do Espírito Santo - Centro Tecnológico</strong><br />
+<strong>Departamento de Informática</strong><br />
+<strong>Disciplina:</strong> INF17411 - Business Intelligence e Gestão Baseada em Dados<br />
+<strong>Professora:</strong> Camila Zacché de Aguiar<br />
+<strong>Período:</strong> 2026/1<br />
+<strong>Local:</strong> Vitória - ES</p>
+<hr />
+<h2 id="resumo">Resumo</h2>
+<p>Este relatório apresenta a concepção, a modelagem e a implementação de uma solução de
+Business Intelligence aplicada à gestão de fundos de investimento. O projeto integra
+uma fonte interna simulada, composta por clientes, contas, produtos e movimentações,
+com dados públicos da Comissão de Valores Mobiliários (CVM), do Banco Central do Brasil
+e do mercado financeiro.</p>
+<p>O processamento foi implementado em Python e Pandas segundo uma arquitetura medalhão,
+com camadas Bronze, Silver e Gold. As informações tratadas são carregadas em um Data
+Warehouse SQLite, com possibilidade de utilização do PostgreSQL, e consumidas por um
+dashboard desenvolvido em Streamlit. O resultado é uma base analítica reproduzível,
+capaz de apoiar análises de patrimônio, rentabilidade, captação, perfil dos
+investidores, localização, indicadores macroeconômicos e relação entre risco e
+retorno.</p>
+<p><strong>Palavras-chave:</strong> Business Intelligence; Data Warehouse; fundos de investimento;
+arquitetura medalhão; Streamlit; Python.</p>
+<hr />
+<h2 id="sumario">Sumário</h2>
+<ol>
+<li><a href="#1-introdu%C3%A7%C3%A3o-e-cen%C3%A1rio">Introdução e cenário</a></li>
+<li><a href="#2-objetivos-e-escopo">Objetivos e escopo</a></li>
+<li><a href="#3-fontes-de-dados">Fontes de dados</a></li>
+<li><a href="#4-dicion%C3%A1rio-de-dados">Dicionário de dados</a></li>
+<li><a href="#5-quest%C3%B5es-de-an%C3%A1lise">Questões de análise</a></li>
+<li><a href="#6-modelo-multidimensional">Modelo multidimensional</a></li>
+<li><a href="#7-ferramentas-utilizadas">Ferramentas utilizadas</a></li>
+<li><a href="#8-arquitetura-e-pipeline-de-dados">Arquitetura e pipeline de dados</a></li>
+<li><a href="#9-ingest%C3%A3o-tratamento-e-carga-do-data-warehouse">Ingestão, tratamento e carga do Data Warehouse</a></li>
+<li><a href="#10-dashboard">Dashboard</a></li>
+<li><a href="#11-limita%C3%A7%C3%B5es-e-trabalhos-futuros">Limitações e trabalhos futuros</a></li>
+<li><a href="#12-conclus%C3%A3o">Conclusão</a></li>
+<li><a href="#13-refer%C3%AAncias">Referências</a></li>
+</ol>
+<hr />
+<h2 id="introducao-e-cenario">1. Introdução e cenário</h2>
+<p>A Banestes Asset atua na administração fiduciária e na gestão de fundos de
+investimento distribuídos pelo Banestes S.A., além de realizar a gestão do Fundo de
+Investimento Imobiliário BCRI11, negociado em bolsa. A atividade de gestão é
+influenciada tanto pelas características dos clientes e produtos quanto pelo ambiente
+econômico.</p>
+<p>Entre os fatores externos relevantes estão a taxa Selic, a inflação medida pelo IPCA e
+o comportamento dos índices de mercado. Internamente, a empresa necessita acompanhar
+clientes, perfis de risco, aplicações, resgates, captação líquida, rentabilidade e
+patrimônio dos fundos.</p>
+<p>O cenário proposto considera que essas informações se encontram dispersas entre
+sistemas, arquivos e fontes públicas. A solução de BI foi construída para integrar
+esses dados e disponibilizá-los em uma estrutura única, histórica e apropriada para
+análise gerencial.</p>
+<h2 id="objetivos-e-escopo">2. Objetivos e escopo</h2>
+<h3 id="objetivo-geral">2.1 Objetivo geral</h3>
+<p>Desenvolver um projeto completo de Business Intelligence para integrar dados internos
+e públicos relacionados a fundos de investimento, transformando-os em informações
+analíticas capazes de apoiar decisões sobre desempenho, captação, perfil dos
+investidores e influência do cenário econômico.</p>
+<h3 id="objetivos-especificos">2.2 Objetivos específicos</h3>
+<ul>
+<li>Criar uma fonte interna simulada, coerente e reproduzível.</li>
+<li>Obter e explorar fontes públicas relacionadas a fundos e indicadores econômicos.</li>
+<li>Implementar ingestão e tratamento segundo a arquitetura Bronze, Silver e Gold.</li>
+<li>Elaborar um modelo multidimensional com fatos, dimensões e data marts.</li>
+<li>Carregar os dados tratados em um Data Warehouse.</li>
+<li>Definir dez questões gerenciais e as métricas necessárias para respondê-las.</li>
+<li>Disponibilizar as análises em um dashboard Streamlit.</li>
+</ul>
+<h3 id="recorte-adotado">2.3 Recorte adotado</h3>
+<p>O período configurado compreende janeiro de 2021 a dezembro de 2026. Como 2026 ainda
+está em andamento, as fontes públicas possuem observações até julho de 2026, enquanto
+a fonte interna fake e a dimensão de datas abrangem todo o ano configurado. A fonte
+interna simulada possui:</p>
+<table>
+<thead>
+<tr>
+<th>Entidade</th>
+<th style="text-align: right;">Quantidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clientes</td>
+<td style="text-align: right;">900</td>
+</tr>
+<tr>
+<td>Contas</td>
+<td style="text-align: right;">1.100</td>
+</tr>
+<tr>
+<td>Fundos internos</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>Movimentações</td>
+<td style="text-align: right;">14.000</td>
+</tr>
+</tbody>
+</table>
+<p>Para controlar o consumo de memória, a ingestão da CVM seleciona os 80 fundos com
+maior patrimônio líquido no mês de referência mais recente. No processamento atual
+foram carregadas 102.590 observações diárias para esses fundos.</p>
+<h2 id="fontes-de-dados">3. Fontes de dados</h2>
+<h3 id="fonte-interna-simulada">3.1 Fonte interna simulada</h3>
+<p>A fonte interna foi criada com a biblioteca Faker e complementada com regras de
+negócio implementadas em Python. A semente <code>20261</code> garante que uma execução com a
+mesma configuração produza dados reproduzíveis.</p>
+<p>Foram simuladas quatro entidades:</p>
+<ul>
+<li><strong>Clientes:</strong> nome, perfil de risco, cidade, estado e datas cadastrais.</li>
+<li><strong>Contas:</strong> relacionamento com clientes, data de abertura e canal.</li>
+<li><strong>Fundos:</strong> produto, tipo e faixa de risco.</li>
+<li><strong>Movimentações:</strong> aplicações e resgates associados a conta, cliente e fundo.</li>
+</ul>
+<p>A escolha do fundo é influenciada pelo perfil do investidor. Clientes conservadores
+possuem maior probabilidade de aplicar em renda fixa, enquanto clientes arrojados têm
+maior peso em fundos de ações. Essa regra torna a fonte fake adequada para analisar o
+relacionamento entre perfil e produto.</p>
+<p><strong>Quadro 1 - Recorte do cadastro interno de fundos</strong></p>
+<table>
+<thead>
+<tr>
+<th>fund_key</th>
+<th>fund_name</th>
+<th>fund_type</th>
+<th>risk_bucket</th>
+<th>ticker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RF_CONSERVADOR</td>
+<td>Fundo Renda Fixa Conservador</td>
+<td>Renda Fixa</td>
+<td>Baixo</td>
+<td></td>
+</tr>
+<tr>
+<td>MULTI_MACRO</td>
+<td>Fundo Multimercado Macro</td>
+<td>Multimercado</td>
+<td>Médio</td>
+<td></td>
+</tr>
+<tr>
+<td>ACOES_BRASIL</td>
+<td>Fundo Ações Brasil</td>
+<td>Ações</td>
+<td>Alto</td>
+<td></td>
+</tr>
+<tr>
+<td>IMOB_FII</td>
+<td>Fundo Imobiliário BCRI11</td>
+<td>FII</td>
+<td>Médio-alto</td>
+<td>BCRI11.SA</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quadro 2 - Recorte das movimentações internas</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">transaction_id</th>
+<th style="text-align: right;">account_id</th>
+<th style="text-align: right;">customer_id</th>
+<th>fund_key</th>
+<th>transaction_date</th>
+<th>transaction_type</th>
+<th style="text-align: right;">amount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">279</td>
+<td style="text-align: right;">253</td>
+<td>IMOB_FII</td>
+<td>2022-04-05</td>
+<td>Aplicação</td>
+<td style="text-align: right;">6.682,37</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">408</td>
+<td style="text-align: right;">758</td>
+<td>RF_CONSERVADOR</td>
+<td>2021-11-16</td>
+<td>Aplicação</td>
+<td style="text-align: right;">1.229,78</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">833</td>
+<td style="text-align: right;">206</td>
+<td>RF_CONSERVADOR</td>
+<td>2021-03-05</td>
+<td>Resgate</td>
+<td style="text-align: right;">4.853,40</td>
+</tr>
+</tbody>
+</table>
+<p>Os nomes presentes nessa fonte são inteiramente sintéticos. Nenhum dado pessoal real
+foi utilizado.</p>
+<h3 id="comissao-de-valores-mobiliarios">3.2 Comissão de Valores Mobiliários</h3>
+<p>Os informes diários de fundos e o cadastro cadastral são obtidos no Portal de Dados
+Abertos da CVM. Os arquivos mensais contêm dados de patrimônio, valor da cota,
+aplicações, resgates e quantidade de cotistas.</p>
+<p>O perfil exploratório da fonte apresentou:</p>
+<table>
+<thead>
+<tr>
+<th>Característica</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Período disponível</td>
+<td>04/01/2021 a 13/07/2026</td>
+</tr>
+<tr>
+<td>Fundos selecionados</td>
+<td>80</td>
+</tr>
+<tr>
+<td>Observações diárias filtradas</td>
+<td>102.590</td>
+</tr>
+<tr>
+<td>Fundos com denominação válida na Gold</td>
+<td>18</td>
+</tr>
+<tr>
+<td>Cadastro CVM</td>
+<td>46.808 registros antes do filtro</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quadro 3 - Recorte dos informes da CVM após padronização</strong></p>
+<table>
+<thead>
+<tr>
+<th>fund_cnpj</th>
+<th>date</th>
+<th style="text-align: right;">share_value</th>
+<th style="text-align: right;">net_worth</th>
+<th style="text-align: right;">daily_application</th>
+<th style="text-align: right;">daily_redemption</th>
+<th style="text-align: right;">quota_holders</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>00.083.181/0001-67</td>
+<td>2021-01-04</td>
+<td style="text-align: right;">701,02271134</td>
+<td style="text-align: right;">16.337.242.387,53</td>
+<td style="text-align: right;">0,00</td>
+<td style="text-align: right;">0,00</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>00.083.181/0001-67</td>
+<td>2021-01-05</td>
+<td style="text-align: right;">701,49668255</td>
+<td style="text-align: right;">16.348.288.224,62</td>
+<td style="text-align: right;">0,00</td>
+<td style="text-align: right;">0,00</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>00.083.181/0001-67</td>
+<td>2021-01-06</td>
+<td style="text-align: right;">691,65236546</td>
+<td style="text-align: right;">16.118.867.705,24</td>
+<td style="text-align: right;">0,00</td>
+<td style="text-align: right;">0,00</td>
+<td style="text-align: right;">4</td>
+</tr>
+</tbody>
+</table>
+<p>O cadastro de fundos é utilizado para associar o CNPJ à denominação social. Registros
+sem nome real ou cujo nome contém apenas o próprio CNPJ são excluídos da camada Gold,
+evitando rótulos inadequados no dashboard.</p>
+<h3 id="banco-central-do-brasil">3.3 Banco Central do Brasil</h3>
+<p>Os indicadores macroeconômicos são obtidos pela API SGS do Banco Central:</p>
+<ul>
+<li>Série 11: taxa Selic diária.</li>
+<li>Série 433: IPCA mensal.</li>
+</ul>
+<p>As séries possuem calendários diferentes e são combinadas por data com junção
+externa, preservando todas as observações. O conjunto processado possui 1.416 linhas,
+entre 01/01/2021 e 15/07/2026.</p>
+<p><strong>Quadro 4 - Recorte das séries macroeconômicas</strong></p>
+<table>
+<thead>
+<tr>
+<th>date</th>
+<th style="text-align: right;">selic_daily_pct</th>
+<th style="text-align: right;">ipca_monthly_pct</th>
+<th>month</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2021-01-01</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;">0,25</td>
+<td>2021-01-01</td>
+</tr>
+<tr>
+<td>2021-01-04</td>
+<td style="text-align: right;">0,007469</td>
+<td style="text-align: right;"></td>
+<td>2021-01-01</td>
+</tr>
+<tr>
+<td>2021-01-05</td>
+<td style="text-align: right;">0,007469</td>
+<td style="text-align: right;"></td>
+<td>2021-01-01</td>
+</tr>
+<tr>
+<td>2021-01-06</td>
+<td style="text-align: right;">0,007469</td>
+<td style="text-align: right;"></td>
+<td>2021-01-01</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dados-de-mercado">3.4 Dados de mercado</h3>
+<p>O projeto utiliza o yfinance para solicitar os fechamentos ajustados de <code>BCRI11.SA</code> e
+<code>^BVSP</code>. A finalidade é calcular retorno mensal, volatilidade e índices acumulados de
+base 100.</p>
+<p>Na exploração registrada durante o desenvolvimento, essa requisição retornou zero
+linhas. O pipeline e o esquema analítico estão preparados para a fonte, mas uma nova
+execução bem-sucedida é necessária para preencher a comparação BCRI11 versus
+Ibovespa antes da captura definitiva do dashboard.</p>
+<h2 id="dicionario-de-dados">4. Dicionário de dados</h2>
+<p>O dicionário completo, com tipos, granularidade e descrição de todas as colunas, está
+disponível em <code>docs/data_dictionary.md</code>. Esta seção apresenta as estruturas centrais
+das fontes e do modelo analítico.</p>
+<h3 id="campos-da-fonte-interna">4.1 Campos da fonte interna</h3>
+<table>
+<thead>
+<tr>
+<th>Tabela</th>
+<th>Chave ou granularidade</th>
+<th>Campos principais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>internal_customers</td>
+<td>Um cliente por <code>customer_id</code></td>
+<td>customer_name, investor_profile, city, state, birth_date, signup_date</td>
+</tr>
+<tr>
+<td>internal_accounts</td>
+<td>Uma conta por <code>account_id</code></td>
+<td>customer_id, account_open_date, channel</td>
+</tr>
+<tr>
+<td>internal_funds</td>
+<td>Um produto por <code>fund_key</code></td>
+<td>fund_name, fund_type, risk_bucket, ticker</td>
+</tr>
+<tr>
+<td>internal_transactions</td>
+<td>Uma movimentação por <code>transaction_id</code></td>
+<td>account_id, customer_id, fund_key, transaction_date, transaction_type, amount</td>
+</tr>
+</tbody>
+</table>
+<h3 id="campos-das-fontes-externas">4.2 Campos das fontes externas</h3>
+<table>
+<thead>
+<tr>
+<th>Fonte</th>
+<th>Campo original</th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CVM</td>
+<td>CNPJ_FUNDO / CNPJ_FUNDO_CLASSE</td>
+<td>Identificador do fundo ou classe</td>
+</tr>
+<tr>
+<td>CVM</td>
+<td>DT_COMPTC</td>
+<td>Data de competência</td>
+</tr>
+<tr>
+<td>CVM</td>
+<td>VL_QUOTA</td>
+<td>Valor da cota</td>
+</tr>
+<tr>
+<td>CVM</td>
+<td>VL_PATRIM_LIQ</td>
+<td>Patrimônio líquido</td>
+</tr>
+<tr>
+<td>CVM</td>
+<td>CAPTC_DIA</td>
+<td>Aplicação informada no dia</td>
+</tr>
+<tr>
+<td>CVM</td>
+<td>RESG_DIA</td>
+<td>Resgate informado no dia</td>
+</tr>
+<tr>
+<td>CVM</td>
+<td>NR_COTST</td>
+<td>Quantidade de cotistas</td>
+</tr>
+<tr>
+<td>BCB</td>
+<td>selic_daily_pct</td>
+<td>Taxa Selic diária da série SGS 11</td>
+</tr>
+<tr>
+<td>BCB</td>
+<td>ipca_monthly_pct</td>
+<td>IPCA mensal da série SGS 433</td>
+</tr>
+<tr>
+<td>Yahoo Finance</td>
+<td>close</td>
+<td>Fechamento ajustado do ativo</td>
+</tr>
+<tr>
+<td>Yahoo Finance</td>
+<td>ticker</td>
+<td>Identificador BCRI11.SA ou ^BVSP</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tabelas-dimensionais-e-fatos">4.3 Tabelas dimensionais e fatos</h3>
+<table>
+<thead>
+<tr>
+<th>Tabela</th>
+<th>Granularidade</th>
+<th>Finalidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dim_date</td>
+<td>Um registro por dia</td>
+<td>Calendário para agrupamentos temporais</td>
+</tr>
+<tr>
+<td>dim_customer</td>
+<td>Um registro por cliente</td>
+<td>Perfil e localização dos investidores</td>
+</tr>
+<tr>
+<td>dim_fund</td>
+<td>Um registro por fundo interno</td>
+<td>Tipo de produto e faixa de risco</td>
+</tr>
+<tr>
+<td>fact_transactions</td>
+<td>Uma movimentação</td>
+<td>Aplicações, resgates e captação líquida</td>
+</tr>
+<tr>
+<td>fact_public_fund_monthly</td>
+<td>Um fundo público por mês</td>
+<td>Patrimônio, fluxo, retorno e volatilidade</td>
+</tr>
+<tr>
+<td>fact_macro_monthly</td>
+<td>Um registro por mês</td>
+<td>Selic e IPCA</td>
+</tr>
+<tr>
+<td>fact_market_monthly</td>
+<td>Um ativo por mês</td>
+<td>Fechamento, retorno e volatilidade</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data-marts-do-streamlit">4.4 Data marts do Streamlit</h3>
+<table>
+<thead>
+<tr>
+<th>Tabela</th>
+<th>Conteúdo analítico</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gold_public_funds_monthly</td>
+<td>Série mensal e retorno acumulado dos fundos públicos</td>
+</tr>
+<tr>
+<td>gold_risk_return</td>
+<td>Indicadores consolidados de risco e retorno por fundo</td>
+</tr>
+<tr>
+<td>gold_internal_flows_monthly</td>
+<td>Aplicações, resgates e captação por fundo e mês</td>
+</tr>
+<tr>
+<td>gold_investor_profile_fund_type</td>
+<td>Volume por perfil e tipo de fundo</td>
+</tr>
+<tr>
+<td>gold_city_investment</td>
+<td>Volume e investidores por cidade</td>
+</tr>
+<tr>
+<td>gold_macro_funds_monthly</td>
+<td>Selic, IPCA, fluxo de renda fixa e retorno dos fundos</td>
+</tr>
+<tr>
+<td>gold_market_comparison_monthly</td>
+<td>Comparação BCRI11 e Ibovespa</td>
+</tr>
+</tbody>
+</table>
+<h2 id="questoes-de-analise">5. Questões de análise</h2>
+<p>As questões foram definidas para cobrir desempenho, fluxo financeiro, clientes,
+geografia, ambiente macroeconômico e risco.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Nº</th>
+<th>Questão</th>
+<th>Visualização adotada</th>
+<th>Dimensões e medidas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>Qual foi a evolução mensal do patrimônio líquido por fundo?</td>
+<td>Gráfico de linhas</td>
+<td>Mês, fundo e patrimônio líquido</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>Qual fundo teve maior rentabilidade acumulada no período?</td>
+<td>Ranking em barras horizontais</td>
+<td>Fundo e retorno acumulado</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>Qual foi o volume mensal de aplicações e resgates?</td>
+<td>Barras agrupadas</td>
+<td>Mês, aplicações e resgates</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>Em quais meses houve maior captação líquida?</td>
+<td>Ranking em barras horizontais</td>
+<td>Mês e captação líquida</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>Qual perfil de investidor mais aplicou em cada tipo de fundo?</td>
+<td>Barras agrupadas</td>
+<td>Tipo de fundo, perfil e aplicações</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>Quais cidades concentram maior volume investido?</td>
+<td>Ranking em barras horizontais</td>
+<td>Cidade, UF e aplicações</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>Existe relação entre Selic e captação em fundos de renda fixa?</td>
+<td>Linha e barras com dois eixos</td>
+<td>Mês, Selic e captação líquida</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>Existe relação entre IPCA e rentabilidade dos fundos?</td>
+<td>Dispersão</td>
+<td>IPCA e retorno médio dos fundos</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>Como o BCRI11 se comportou em comparação ao Ibovespa?</td>
+<td>Linhas em índice base 100</td>
+<td>Mês e índices acumulados</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>Quais fundos tiveram melhor relação entre rentabilidade e risco?</td>
+<td>Dispersão com tamanho por patrimônio</td>
+<td>Volatilidade, retorno e patrimônio</td>
+</tr>
+</tbody>
+</table>
+<p>As análises 7 e 8 permitem observar associação visual e não devem ser interpretadas,
+isoladamente, como evidência de causalidade.</p>
+<h2 id="modelo-multidimensional">6. Modelo multidimensional</h2>
+<p>O modelo segue uma constelação de fatos. O processo interno utiliza dimensões
+compartilhadas de data, cliente e fundo. Os dados públicos possuem fatos mensais
+específicos para fundos, macroeconomia e mercado.</p>
+<p><img src="modelo.png" alt="Modelo dimensional do projeto" /></p>
+<p><strong>Figura 1 - Modelo dimensional do projeto</strong></p>
+<h3 id="dimensoes">6.1 Dimensões</h3>
+<ul>
+<li><strong>dim_date:</strong> data, ano, trimestre, mês e primeiro dia do mês.</li>
+<li><strong>dim_customer:</strong> cliente, perfil do investidor e localização.</li>
+<li><strong>dim_fund:</strong> fundo interno, tipo e faixa de risco.</li>
+</ul>
+<h3 id="fatos">6.2 Fatos</h3>
+<ul>
+<li><strong>fact_transactions:</strong> granularidade de uma movimentação, com valores de aplicação,
+resgate e captação líquida.</li>
+<li><strong>fact_public_fund_monthly:</strong> granularidade de um fundo público por mês.</li>
+<li><strong>fact_macro_monthly:</strong> granularidade mensal para Selic e IPCA.</li>
+<li><strong>fact_market_monthly:</strong> granularidade de um ativo por mês.</li>
+</ul>
+<h3 id="medidas-derivadas">6.3 Medidas derivadas</h3>
+<p>As principais medidas são calculadas da seguinte forma:</p>
+<pre><code class="language-text">application_amount = amount, quando transaction_type = &quot;Aplicacao&quot;
+redemption_amount  = amount, quando transaction_type = &quot;Resgate&quot;
+net_flow_amount    = application_amount - redemption_amount
+
+monthly_return = produto(1 + daily_return) - 1
+volatility     = desvio_padrao(daily_return)
+
+return_risk_ratio = accumulated_return / avg_daily_volatility
+</code></pre>
+<p>O arquivo-fonte atualizado do modelo encontra-se em <code>docs/dbdiagram.dbml</code>. As chaves
+do DBML representam o modelo lógico. A carga atual realizada pelo Pandas recria as
+tabelas sem aplicar fisicamente todas as restrições de chave.</p>
+<h2 id="ferramentas-utilizadas">7. Ferramentas utilizadas</h2>
+<table>
+<thead>
+<tr>
+<th>Ferramenta</th>
+<th>Papel no projeto</th>
+<th>Justificativa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python 3.11+</td>
+<td>Linguagem principal</td>
+<td>Ecossistema adequado para engenharia e análise de dados</td>
+</tr>
+<tr>
+<td>Pandas</td>
+<td>Ingestão, limpeza e agregação</td>
+<td>Operações tabulares e tratamento de séries temporais</td>
+</tr>
+<tr>
+<td>Faker</td>
+<td>Geração da fonte interna</td>
+<td>Dados sintéticos reproduzíveis sem exposição de dados reais</td>
+</tr>
+<tr>
+<td>Requests</td>
+<td>Consumo das APIs públicas</td>
+<td>Requisições HTTP para CVM e Banco Central</td>
+</tr>
+<tr>
+<td>yfinance</td>
+<td>Dados de mercado</td>
+<td>Interface para cotações do BCRI11 e Ibovespa</td>
+</tr>
+<tr>
+<td>NumPy</td>
+<td>Cálculos vetorizados</td>
+<td>Medidas condicionais e tratamento numérico</td>
+</tr>
+<tr>
+<td>SQLAlchemy</td>
+<td>Carga e consulta do warehouse</td>
+<td>Compatibilidade com SQLite e PostgreSQL</td>
+</tr>
+<tr>
+<td>SQLite</td>
+<td>Data Warehouse da demonstração</td>
+<td>Banco portátil, simples e incluído no repositório de apresentação</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>Alternativa de Data Warehouse</td>
+<td>Opção para execução em ambiente de servidor</td>
+</tr>
+<tr>
+<td>Streamlit</td>
+<td>Dashboard</td>
+<td>Construção rápida de aplicação analítica interativa</td>
+</tr>
+<tr>
+<td>Plotly</td>
+<td>Gráficos</td>
+<td>Interatividade, hover, zoom e diferenciação de séries</td>
+</tr>
+<tr>
+<td>dbdiagram.io / DBML</td>
+<td>Modelo dimensional</td>
+<td>Documentação visual das tabelas e relacionamentos</td>
+</tr>
+<tr>
+<td>Ruff</td>
+<td>Qualidade do código</td>
+<td>Formatação e verificação estática</td>
+</tr>
+</tbody>
+</table>
+<h2 id="arquitetura-e-pipeline-de-dados">8. Arquitetura e pipeline de dados</h2>
+<p>O pipeline segue a arquitetura medalhão:</p>
+<pre><code class="language-text">Fontes internas e públicas
+          |
+          v
+Bronze -&gt; Silver -&gt; Gold -&gt; Data Warehouse -&gt; Streamlit
+</code></pre>
+<h3 id="bronze">8.1 Bronze</h3>
+<p>A camada Bronze preserva os dados brutos:</p>
+<ul>
+<li><code>data/bronze/internal</code>: CSVs da fonte fake.</li>
+<li><code>data/bronze/public/cvm</code>: arquivos ZIP e CSV originais da CVM.</li>
+<li>Respostas das APIs são mantidas em memória e encaminhadas ao tratamento.</li>
+</ul>
+<p>Essa camada permite rastreabilidade e evita novo download dos arquivos da CVM quando
+eles já estão disponíveis localmente.</p>
+<h3 id="silver">8.2 Silver</h3>
+<p>A camada Silver contém dados limpos e padronizados:</p>
+<ul>
+<li>conversão de datas e valores numéricos;</li>
+<li>normalização de <code>CNPJ_FUNDO_CLASSE</code> para <code>CNPJ_FUNDO</code>;</li>
+<li>renomeação de colunas para nomes analíticos;</li>
+<li>remoção de registros sem data ou identificador;</li>
+<li>cálculo de retorno diário e captação líquida;</li>
+<li>seleção das colunas necessárias;</li>
+<li>filtro dos fundos de referência.</li>
+</ul>
+<h3 id="gold">8.3 Gold</h3>
+<p>A camada Gold contém:</p>
+<ul>
+<li>dimensões e fatos do modelo multidimensional;</li>
+<li>agregações mensais;</li>
+<li>retornos compostos;</li>
+<li>volatilidade;</li>
+<li>índices de base 100;</li>
+<li>data marts específicos para cada grupo de gráficos.</li>
+</ul>
+<p>Os DataFrames Gold são gravados em CSV para auditoria e carregados no Data Warehouse.</p>
+<h3 id="data-warehouse-e-apresentacao">8.4 Data Warehouse e apresentação</h3>
+<p>O Data Warehouse é a fonte oficial do dashboard. O SQLite utilizado na apresentação
+fica em <code>warehouse/bi_fundos.sqlite</code>. A mesma aplicação aceita PostgreSQL por meio da
+variável <code>WAREHOUSE_URL</code>.</p>
+<p>O Streamlit consulta as tabelas <code>gold_*</code> do banco. Os CSVs são utilizados apenas como
+contingência quando o warehouse não está disponível, situação sinalizada na barra
+lateral do dashboard.</p>
+<h2 id="ingestao-tratamento-e-carga-do-data-warehouse">9. Ingestão, tratamento e carga do Data Warehouse</h2>
+<h3 id="configuracao-do-ambiente">9.1 Configuração do ambiente</h3>
+<pre><code class="language-powershell">python -m venv .venv
+..venvScriptsActivate.ps1
+pip install -r requirements.txt
+</code></pre>
+<p>O arquivo <code>.env</code> define a URL do warehouse:</p>
+<pre><code class="language-dotenv">WAREHOUSE_URL=sqlite:///warehouse/bi_fundos.sqlite
+</code></pre>
+<h3 id="geracao-da-fonte-interna">9.2 Geração da fonte interna</h3>
+<p>O módulo <code>src/fake_internal.py</code>:</p>
+<ol>
+<li>inicializa Faker, Random e NumPy com a mesma semente;</li>
+<li>gera os clientes e atribui perfis com pesos definidos;</li>
+<li>gera contas relacionadas aos clientes;</li>
+<li>seleciona fundos com pesos dependentes do perfil;</li>
+<li>gera aplicações e resgates com valores de distribuição lognormal;</li>
+<li>grava os quatro CSVs na camada Bronze.</li>
+</ol>
+<p>Trecho representativo:</p>
+<pre><code class="language-python">fake = Faker(&quot;pt_BR&quot;)
+Faker.seed(config.seed)
+random.seed(config.seed)
+np.random.seed(config.seed)
+</code></pre>
+<h3 id="ingestao-da-cvm">9.3 Ingestão da CVM</h3>
+<p>O módulo <code>src/sources_public.py</code> baixa os informes mensais e o cadastro. Antes de
+concatenar o período inteiro, o pipeline:</p>
+<ol>
+<li>abre o arquivo mensal mais recente disponível;</li>
+<li>ordena os fundos por <code>VL_PATRIM_LIQ</code>;</li>
+<li>seleciona os maiores CNPJs;</li>
+<li>lê somente as colunas necessárias de cada arquivo;</li>
+<li>filtra cada mês antes da concatenação.</li>
+</ol>
+<p>Essa estratégia reduziu o volume carregado e evitou o consumo excessivo de memória
+observado na primeira versão do pipeline.</p>
+<h3 id="ingestao-do-banco-central-e-mercado">9.4 Ingestão do Banco Central e mercado</h3>
+<p>As séries do Banco Central são consultadas com período inicial e final:</p>
+<pre><code class="language-python">fetch_bcb_series(11, &quot;selic_daily_pct&quot;, start_date, end_date)
+fetch_bcb_series(433, &quot;ipca_monthly_pct&quot;, start_date, end_date)
+</code></pre>
+<p>As cotações são solicitadas para:</p>
+<pre><code class="language-python">[&quot;BCRI11.SA&quot;, &quot;^BVSP&quot;]
+</code></pre>
+<h3 id="tratamento-silver">9.5 Tratamento Silver</h3>
+<p>O módulo <code>src/transform.py</code> implementa a padronização. Entre as regras aplicadas estão:</p>
+<ul>
+<li><code>pd.to_datetime(..., errors=&quot;coerce&quot;)</code> para datas;</li>
+<li><code>pd.to_numeric(..., errors=&quot;coerce&quot;)</code> para medidas;</li>
+<li>cálculo de <code>date_key</code> no formato <code>YYYYMMDD</code>;</li>
+<li>cálculo de <code>daily_net_flow</code>;</li>
+<li>ordenação por fundo e data antes de calcular retornos;</li>
+<li>associação dos nomes do cadastro CVM;</li>
+<li>exclusão de fundos sem denominação válida.</li>
+</ul>
+<h3 id="transformacao-gold">9.6 Transformação Gold</h3>
+<p>Os fatos públicos são agregados por CNPJ e mês. O retorno mensal é composto a partir
+dos retornos diários:</p>
+<pre><code class="language-python">lambda s: (1 + s.dropna()).prod() - 1
+</code></pre>
+<p>Os data marts do Streamlit são construídos em <code>src/dashboard_marts.py</code>. Essa etapa
+combina fatos e dimensões para entregar ao dashboard tabelas no nível exato de cada
+visualização.</p>
+<h3 id="carga-do-data-warehouse">9.7 Carga do Data Warehouse</h3>
+<p>O módulo <code>src/load_warehouse.py</code> cria uma engine SQLAlchemy e carrega todas as tabelas
+Gold:</p>
+<pre><code class="language-python">engine = create_engine(warehouse_url)
+with engine.begin() as connection:
+    for table_name, df in tables.items():
+        df.to_sql(table_name, connection, if_exists=&quot;replace&quot;, index=False)
+</code></pre>
+<p>O uso de transação garante que cada operação de carga seja controlada pela conexão do
+banco. A opção <code>replace</code> torna a execução idempotente para fins de demonstração: uma
+nova execução substitui a versão anterior das tabelas.</p>
+<h3 id="execucao-completa">9.8 Execução completa</h3>
+<pre><code class="language-powershell">python -m src.pipeline --warehouse sqlite:///warehouse/bi_fundos.sqlite
+</code></pre>
+<p>Para reduzir o número de fundos públicos:</p>
+<pre><code class="language-powershell">python -m src.pipeline --max-public-funds 30
+</code></pre>
+<p>Para iniciar o dashboard:</p>
+<pre><code class="language-powershell">streamlit run app.py
+</code></pre>
+<p>Durante a apresentação, a barra lateral deve indicar:</p>
+<pre><code class="language-text">Fonte: Data Warehouse (SQLITE)
+</code></pre>
+<h2 id="dashboard">10. Dashboard</h2>
+<blockquote>
+<p><strong>PENDENTE: inserir nesta seção a imagem final do dashboard Streamlit.</strong></p>
+</blockquote>
+<!--
+Substituir este comentário pela imagem final, por exemplo:
+
+![Dashboard Streamlit](dashboard.png)
+
+Manter a legenda:
+Figura 2 - Dashboard de fundos de investimento desenvolvido em Streamlit.
+-->
+<p>O dashboard foi organizado em cinco abas:</p>
+<ol>
+<li>Visão geral.</li>
+<li>Fundos e captação.</li>
+<li>Investidores e geografia.</li>
+<li>Macro x fundos.</li>
+<li>Mercado, risco e retorno.</li>
+</ol>
+<p>Os gráficos utilizam filtros de período, cores distintas para fundos e ativos,
+tooltips, zoom e tabelas auxiliares. Os indicadores monetários são apresentados em
+formato compacto, mantendo o valor completo no texto de ajuda.</p>
+<h2 id="limitacoes-e-trabalhos-futuros">11. Limitações e trabalhos futuros</h2>
+<ul>
+<li>A fonte interna é sintética e representa um cenário analítico, não o comportamento
+real dos clientes do Banestes.</li>
+<li>A seleção dos maiores fundos reduz o consumo de memória, mas não representa todo o
+universo da CVM.</li>
+<li>A relação visual entre variáveis macroeconômicas e fundos indica associação, não
+causalidade.</li>
+<li>A execução registrada do yfinance não retornou cotações. A coleta deve ser repetida
+antes da captura final do gráfico BCRI11 versus Ibovespa.</li>
+<li>O processo atual substitui as tabelas do warehouse. Uma evolução futura pode adotar
+carga incremental, controle de versão e restrições físicas de integridade.</li>
+<li>O PostgreSQL está previsto e suportado, mas a demonstração utiliza SQLite por sua
+portabilidade.</li>
+</ul>
+<h2 id="conclusao">12. Conclusão</h2>
+<p>O projeto implementa o ciclo completo solicitado para uma solução de Business
+Intelligence: definição do escopo, criação de fonte interna, exploração de fontes
+públicas, modelagem multidimensional, tratamento em arquitetura medalhão, carga em
+Data Warehouse e construção de dashboard.</p>
+<p>A integração entre dados transacionais simulados, informações de fundos da CVM e
+indicadores do Banco Central permite analisar o desempenho dos fundos sob diferentes
+perspectivas. A separação em camadas melhora a rastreabilidade, enquanto o Data
+Warehouse centraliza as informações tratadas e estabelece uma fonte única para o
+Streamlit.</p>
+<p>Além de responder às questões gerenciais propostas, a implementação é reproduzível e
+pode ser evoluída para PostgreSQL, novas fontes externas, cargas incrementais e
+análises estatísticas mais aprofundadas.</p>
+<h2 id="referencias">13. Referências</h2>
+<ul>
+<li>BANCO CENTRAL DO BRASIL. Sistema Gerenciador de Séries Temporais - SGS. Disponível
+em: <a href="https://www3.bcb.gov.br/sgspub/">https://www3.bcb.gov.br/sgspub/</a>. Acesso em: 2026.</li>
+<li>COMISSÃO DE VALORES MOBILIÁRIOS. Portal de Dados Abertos da CVM. Disponível em:
+<a href="https://dados.cvm.gov.br/">https://dados.cvm.gov.br/</a>. Acesso em: 2026.</li>
+<li>DBML. DBML Syntax. Disponível em: <a href="https://dbml.dbdiagram.io/docs/">https://dbml.dbdiagram.io/docs/</a>. Acesso em:
+2026.</li>
+<li>PANDAS. Pandas documentation. Disponível em: <a href="https://pandas.pydata.org/docs/">https://pandas.pydata.org/docs/</a>.
+Acesso em: 2026.</li>
+<li>PLOTLY. Plotly Python Open Source Graphing Library. Disponível em:
+<a href="https://plotly.com/python/">https://plotly.com/python/</a>. Acesso em: 2026.</li>
+<li>STREAMLIT. Streamlit documentation. Disponível em:
+<a href="https://docs.streamlit.io/">https://docs.streamlit.io/</a>. Acesso em: 2026.</li>
+<li>YFINANCE. yfinance documentation. Disponível em:
+<a href="https://ranaroussi.github.io/yfinance/">https://ranaroussi.github.io/yfinance/</a>. Acesso em: 2026.</li>
+</ul>
+<hr />
+<p><strong>Artefatos complementares</strong></p>
+<ul>
+<li><code>docs/data_dictionary.md</code>: dicionário de dados completo.</li>
+<li><code>docs/dbdiagram.dbml</code>: modelo multidimensional.</li>
+<li><code>docs/architecture.md</code>: arquitetura técnica.</li>
+<li><code>sql/analysis_queries.sql</code>: consultas correspondentes às dez questões.</li>
+<li><code>src/</code>: código-fonte do pipeline.</li>
+<li><code>app.py</code>: dashboard Streamlit.</li>
+</ul>
+</body></html>

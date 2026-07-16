@@ -38,15 +38,16 @@ def _log(message: str) -> None:
 
 def main() -> None:
     """Executa o pipeline completo de dados de bronze para silver e gold."""
+    default_config = PipelineConfig()
     parser = argparse.ArgumentParser(description="Executa o pipeline de dados do projeto de BI.")
-    parser.add_argument("--start-year", type=int, default=2023)
-    parser.add_argument("--end-year", type=int, default=2025)
+    parser.add_argument("--start-year", type=int, default=default_config.start_year)
+    parser.add_argument("--end-year", type=int, default=default_config.end_year)
     parser.add_argument("--warehouse", default=None)
     parser.add_argument("--skip-public", action="store_true")
     parser.add_argument(
         "--max-public-funds",
         type=int,
-        default=PipelineConfig().max_public_funds,
+        default=default_config.max_public_funds,
         help="Quantidade de fundos CVM carregados por padrao, escolhidos por maior PL.",
     )
     args = parser.parse_args()
@@ -55,7 +56,7 @@ def main() -> None:
         start_year=args.start_year,
         end_year=args.end_year,
         max_public_funds=args.max_public_funds,
-        warehouse_url=args.warehouse or PipelineConfig().warehouse_url,
+        warehouse_url=args.warehouse or default_config.warehouse_url,
     )
     start_date = f"{config.start_year}-01-01"
     end_date = f"{config.end_year + 1}-01-01"

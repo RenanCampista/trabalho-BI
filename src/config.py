@@ -27,8 +27,8 @@ DEFAULT_WAREHOUSE_URL = os.getenv(
 class PipelineConfig:
     """Parametros de execucao usados na ingestao, geracao fake e carga."""
 
-    start_year: int = 2023
-    end_year: int = 2025
+    start_year: int = 2021
+    end_year: int = 2026
     seed: int = 20261
     n_customers: int = 900
     n_accounts: int = 1100
