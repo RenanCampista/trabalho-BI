@@ -1,14 +1,27 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.exc import SQLAlchemyError
 
-GOLD_DIR = Path(__file__).resolve().parent / "data" / "gold"
+from src.config import DEFAULT_WAREHOUSE_URL, GOLD_DIR
+
 DEFAULT_CHART_HEIGHT = 560
 RANKING_CHART_HEIGHT = 620
+DASHBOARD_TABLES = frozenset(
+    {
+        "gold_public_funds_monthly",
+        "gold_risk_return",
+        "gold_internal_flows_monthly",
+        "gold_investor_profile_fund_type",
+        "gold_city_investment",
+        "gold_macro_funds_monthly",
+        "gold_market_comparison_monthly",
+    }
+)
 
 st.set_page_config(
     page_title="Dashboard BI - Fundos",
@@ -17,13 +30,43 @@ st.set_page_config(
 )
 
 
-@st.cache_data(show_spinner=False)
-def load_gold_table(name: str) -> pd.DataFrame:
-    """Carrega uma tabela CSV da camada gold."""
-    path = GOLD_DIR / f"{name}.csv"
-    if not path.exists():
-        return pd.DataFrame()
-    df = pd.read_csv(path)
+@st.cache_resource
+def get_warehouse_engine(warehouse_url: str) -> Engine:
+    """Cria e reutiliza a conexao SQLAlchemy com o data warehouse."""
+    return create_engine(warehouse_url, pool_pre_ping=True)
+
+
+@st.cache_data(show_spinner=False, ttl=60)
+def inspect_warehouse(warehouse_url: str) -> tuple[tuple[str, ...], str | None]:
+    """Lista as tabelas disponiveis e informa falhas de conexao com o warehouse."""
+    try:
+        engine = get_warehouse_engine(warehouse_url)
+        return tuple(inspect(engine).get_table_names()), None
+    except SQLAlchemyError as exc:
+        return (), type(exc).__name__
+
+
+@st.cache_data(show_spinner=False, ttl=60)
+def load_gold_table(
+    name: str,
+    warehouse_url: str,
+    use_warehouse: bool,
+) -> pd.DataFrame:
+    """Carrega uma tabela gold do warehouse ou do CSV de contingencia."""
+    if name not in DASHBOARD_TABLES:
+        raise ValueError(f"Tabela nao permitida no dashboard: {name}")
+
+    if use_warehouse:
+        try:
+            df = pd.read_sql_table(name, get_warehouse_engine(warehouse_url))
+        except (SQLAlchemyError, ValueError):
+            return pd.DataFrame()
+    else:
+        path = GOLD_DIR / f"{name}.csv"
+        if not path.exists():
+            return pd.DataFrame()
+        df = pd.read_csv(path)
+
     for column in ["month_start", "date"]:
         if column in df.columns:
             df[column] = pd.to_datetime(df[column], errors="coerce")
@@ -417,7 +460,6 @@ def render_macro(macro: pd.DataFrame, period: tuple[pd.Timestamp, pd.Timestamp])
             margin={"l": 30, "r": 30, "t": 70, "b": 40},
         )
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
-        st.caption("A visualizacao sugere associacao entre variaveis, nao causalidade.")
 
 
 def render_market_and_risk(
@@ -502,16 +544,38 @@ def render_market_and_risk(
 
 def main() -> None:
     """Executa o dashboard Streamlit."""
-    public_funds = load_gold_table("gold_public_funds_monthly")
-    risk_return = load_gold_table("gold_risk_return")
-    flows = load_gold_table("gold_internal_flows_monthly")
-    profile = load_gold_table("gold_investor_profile_fund_type")
-    city = load_gold_table("gold_city_investment")
-    macro = load_gold_table("gold_macro_funds_monthly")
-    market = load_gold_table("gold_market_comparison_monthly")
+    warehouse_tables, warehouse_error = inspect_warehouse(DEFAULT_WAREHOUSE_URL)
+    use_warehouse = bool(warehouse_tables)
+
+    public_funds = load_gold_table(
+        "gold_public_funds_monthly", DEFAULT_WAREHOUSE_URL, use_warehouse
+    )
+    risk_return = load_gold_table("gold_risk_return", DEFAULT_WAREHOUSE_URL, use_warehouse)
+    flows = load_gold_table("gold_internal_flows_monthly", DEFAULT_WAREHOUSE_URL, use_warehouse)
+    profile = load_gold_table(
+        "gold_investor_profile_fund_type", DEFAULT_WAREHOUSE_URL, use_warehouse
+    )
+    city = load_gold_table("gold_city_investment", DEFAULT_WAREHOUSE_URL, use_warehouse)
+    macro = load_gold_table("gold_macro_funds_monthly", DEFAULT_WAREHOUSE_URL, use_warehouse)
+    market = load_gold_table("gold_market_comparison_monthly", DEFAULT_WAREHOUSE_URL, use_warehouse)
 
     st.title("Dashboard BI - Fundos de Investimento")
-    st.caption("Dashboard local gerado em Streamlit a partir da camada gold.")
+    if use_warehouse:
+        backend = make_url(DEFAULT_WAREHOUSE_URL).get_backend_name()
+        st.caption(f"Fonte analitica: Data Warehouse {backend.upper()}.")
+        missing_tables = sorted(DASHBOARD_TABLES.difference(warehouse_tables))
+        if missing_tables:
+            st.sidebar.warning(
+                "O warehouse nao possui todas as tabelas do dashboard. "
+                "Execute o pipeline novamente."
+            )
+    else:
+        st.caption("Fonte de contingencia: arquivos CSV da camada gold.")
+        error_detail = f" ({warehouse_error})" if warehouse_error else ""
+        st.sidebar.warning(
+            "Data Warehouse indisponivel"
+            f"{error_detail}. O dashboard esta usando os CSVs de contingencia."
+        )
 
     min_date, max_date = get_period_options(public_funds, flows, macro, market)
     period = st.sidebar.date_input(

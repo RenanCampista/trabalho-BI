@@ -35,8 +35,8 @@ Backend para preparar as fontes de dados do trabalho antes do dashboard:
 - `data/bronze/public`: arquivos publicos brutos baixados da CVM e demais fontes.
 - `data/bronze/internal`: fonte interna fake gerada com Faker.
 - `data/silver`: dados limpos, tipados, padronizados e ainda pouco agregados.
-- `data/gold`: dimensoes e fatos analiticos prontos para dashboard.
-- `warehouse`: banco SQLite ou PostgreSQL carregado com as tabelas gold.
+- `data/gold`: dimensoes, fatos e agregacoes analiticas produzidas pelo pipeline.
+- `warehouse`: banco SQLite ou PostgreSQL carregado com as tabelas gold e usado pelo dashboard.
 
 ## Como rodar
 
@@ -79,20 +79,33 @@ python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 
 Tambem ha um dashboard local em Streamlit para validar e apresentar as 10 perguntas sem depender do Looker Studio.
 
-Depois de gerar a camada gold, instale as dependencias e execute:
+O Data Warehouse e a fonte analitica principal do dashboard. Portanto, execute primeiro o pipeline para
+tratar os dados e carregar as tabelas gold no SQLite:
 
 ```powershell
 pip install -r requirements.txt
+python -m src.pipeline --warehouse sqlite:///warehouse/bi_fundos.sqlite
 streamlit run app.py
 ```
 
-O app le diretamente os arquivos em `data/gold` e organiza os graficos em cinco abas:
+O app usa a `WAREHOUSE_URL` definida no `.env`, a mesma configuracao utilizada pelo pipeline. Se o banco
+estiver indisponivel, o dashboard usa temporariamente os CSVs de `data/gold` e exibe um aviso na barra
+lateral. Na apresentacao, confirme que a barra lateral mostra `Fonte: Data Warehouse (SQLITE)`.
+
+O dashboard organiza os graficos em cinco abas:
 
 - Visao geral
 - Fundos e captacao
 - Investidores e geografia
 - Macro x fundos
 - Mercado e risco
+
+O fluxo demonstrado pelo projeto fica:
+
+```text
+Fontes internas e publicas -> Bronze -> Silver -> Gold -> Data Warehouse -> Streamlit
+```
+
 ## Google Sheets e Looker Studio
 
 Ao final do pipeline, tambem e gerada uma planilha pronta para importar no Google Sheets:

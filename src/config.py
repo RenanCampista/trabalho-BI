@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 ROOT_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT_DIR / ".env")
+
 DATA_DIR = ROOT_DIR / "data"
 BRONZE_DIR = DATA_DIR / "bronze"
 SILVER_DIR = DATA_DIR / "silver"
@@ -12,7 +17,10 @@ RAW_DIR = BRONZE_DIR / "public"
 INTERNAL_DIR = BRONZE_DIR / "internal"
 PROCESSED_DIR = GOLD_DIR
 WAREHOUSE_DIR = ROOT_DIR / "warehouse"
-DEFAULT_WAREHOUSE_URL = f"sqlite:///{(WAREHOUSE_DIR / 'bi_fundos.sqlite').as_posix()}"
+DEFAULT_WAREHOUSE_URL = os.getenv(
+    "WAREHOUSE_URL",
+    f"sqlite:///{(WAREHOUSE_DIR / 'bi_fundos.sqlite').as_posix()}",
+)
 
 
 @dataclass(frozen=True)
