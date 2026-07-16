@@ -178,6 +178,7 @@ def bar_chart(
     labels: dict[str, str] | None = None,
     height: int = DEFAULT_CHART_HEIGHT,
     show_legend: bool = True,
+    categorical_axis: bool = False,
 ) -> None:
     """Renderiza um grafico de barras padronizado."""
     fig = px.bar(
@@ -197,6 +198,11 @@ def bar_chart(
         margin={"l": 30, "r": 30, "t": 70, "b": 100},
         legend={"orientation": "h", "yanchor": "top", "y": -0.15},
     )
+    if categorical_axis:
+        if orientation == "h":
+            fig.update_yaxes(type="category")
+        else:
+            fig.update_xaxes(type="category")
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True})
 
 
@@ -319,14 +325,15 @@ def render_funds_and_flows(
             net_flow_amount=("net_flow_amount", "sum")
         )
         top_months = monthly_net.nlargest(12, "net_flow_amount").sort_values("net_flow_amount")
-        top_months["mes"] = top_months["month_start"].dt.strftime("%Y-%m")
+        top_months["mes_ano"] = top_months["month_start"].dt.strftime("%m/%Y")
         bar_chart(
             top_months,
             "net_flow_amount",
-            "mes",
+            "mes_ano",
             "4. Meses com maior captacao liquida",
             orientation="h",
-            labels={"net_flow_amount": "Captacao liquida", "mes": "Mes"},
+            labels={"net_flow_amount": "Captacao liquida", "mes_ano": "Mes/ano"},
+            categorical_axis=True,
         )
 
     if ensure_columns(
@@ -428,12 +435,24 @@ def render_macro(macro: pd.DataFrame, period: tuple[pd.Timestamp, pd.Timestamp])
             x=macro["month_start"],
             y=macro["renda_fixa_net_flow"],
             name="Captacao liquida RF",
-            yaxis="y2",
             marker_color="#4E79A7",
         )
+        fig.data = fig.data[::-1]
+        fig.data[0].yaxis = "y"
+        fig.data[1].yaxis = "y2"
         fig.update_layout(
             height=DEFAULT_CHART_HEIGHT,
-            yaxis2={"overlaying": "y", "side": "right", "title": "Captacao liquida RF"},
+            yaxis={
+                "side": "right",
+                "title": "Captacao liquida RF",
+                "showgrid": False,
+            },
+            yaxis2={
+                "overlaying": "y",
+                "side": "left",
+                "title": "Selic mensal (%)",
+                "showgrid": True,
+            },
             hovermode="x unified",
             margin={"l": 30, "r": 30, "t": 70, "b": 40},
         )
