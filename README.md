@@ -73,6 +73,30 @@ $env:WAREHOUSE_URL="postgresql+psycopg2://usuario:senha@localhost:5432/bi_fundos
 python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 ```
 
+
+## Google Sheets e Looker Studio
+
+Ao final do pipeline, tambem e gerada uma planilha pronta para importar no Google Sheets:
+
+```text
+data/gold/google_sheets_dashboard.xlsx
+```
+
+Essa planilha contem abas da camada gold ja achatadas para dashboard, como:
+
+- `public_funds_monthly`
+- `risk_return`
+- `internal_flows_monthly`
+- `investor_profile_fund_type`
+- `city_investment`
+- `macro_funds_monthly`
+- `market_comparison_monthly`
+
+Importe esse arquivo no Google Sheets e conecte a planilha no Looker Studio. O prompt para orientar o Gemini na criacao dos graficos esta em:
+
+```text
+docs/prompt_gemini_looker_studio.md
+```
 ## Fontes publicas
 
 - CVM Dados Abertos: informes diarios e cadastro de fundos de investimento.
@@ -82,4 +106,5 @@ python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 ## Modelo
 
 O modelo dimensional esta em `docs/modelo.png`.
+
 

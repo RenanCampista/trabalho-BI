@@ -213,7 +213,20 @@ def transform_cvm_reports(
         monthly = monthly.merge(
             silver_registry[["fund_cnpj", "public_fund_name"]], on="fund_cnpj", how="left"
         )
-    return monthly
+    return _filter_named_public_funds(monthly)
+
+
+def _filter_named_public_funds(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove fundos publicos sem nome real para melhorar o consumo no dashboard."""
+    if "public_fund_name" not in df.columns:
+        return df.iloc[0:0].copy()
+
+    names = df["public_fund_name"].astype("string").str.strip()
+    cnpjs = df["fund_cnpj"].astype("string").str.strip()
+    cnpj_pattern = r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}"
+    has_real_name = names.notna() & names.ne("") & names.ne(cnpjs)
+    is_not_cnpj = ~names.str.fullmatch(cnpj_pattern, na=False)
+    return df[has_real_name & is_not_cnpj].copy()
 
 
 def transform_macro(silver_macro: pd.DataFrame) -> pd.DataFrame:

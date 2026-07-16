@@ -4,6 +4,22 @@ version = "0.1.0"
 description = "Pipeline de dados para projeto de BI com fontes publicas, dados fake internos e carga em warehouse."
 readme = "README.md"
 requires-python = ">=3.11"
+dependencies = [
+    "Faker==33.1.0",
+    "SQLAlchemy==2.0.36",
+    "numpy==2.1.3",
+    "openpyxl==3.1.5",
+    "pandas==2.2.3",
+    "psycopg2-binary==2.9.10",
+    "python-dateutil==2.9.0.post0",
+    "requests==2.32.3",
+    "yfinance==0.2.50",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.8.4",
+]
 
 [tool.ruff]
 target-version = "py311"

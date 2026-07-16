@@ -4,6 +4,7 @@ import argparse
 
 from src.config import PipelineConfig
 from src.fake_internal import generate_internal_data
+from src.google_sheets import build_dashboard_gold_tables, export_google_sheets_workbook
 from src.load_warehouse import load_tables
 from src.sources_public import (
     download_cvm_fund_reports,
@@ -111,10 +112,18 @@ def main() -> None:
     else:
         _log("Fontes publicas ignoradas por --skip-public.")
 
+    _log("Gerando tabelas gold para Google Sheets e Looker Studio...")
+    dashboard_gold_tables = build_dashboard_gold_tables(gold_tables)
+    gold_tables.update(dashboard_gold_tables)
+    _log(f"Tabelas gold de dashboard geradas: {len(dashboard_gold_tables)}")
+
     _log("Persistindo camada silver em CSV...")
     persist_silver(silver_tables)
     _log("Persistindo camada gold em CSV...")
     persist_gold(gold_tables)
+    _log("Exportando planilha para Google Sheets...")
+    workbook_path = export_google_sheets_workbook(gold_tables)
+    _log(f"Planilha gerada: {workbook_path}")
     _log("Carregando tabelas gold no warehouse...")
     load_tables(gold_tables, config.warehouse_url)
     _log(f"Pipeline concluido. Warehouse: {config.warehouse_url}")

@@ -21,6 +21,7 @@ BRAZILIAN_CITIES = [
     ("Goiania", "GO"),
     ("Brasilia", "DF"),
     ("Fortaleza", "CE"),
+    ("Vitoria", "ES"),
 ]
 
 
