@@ -74,6 +74,25 @@ python -m src.pipeline --warehouse $env:WAREHOUSE_URL
 ```
 
 
+
+## Dashboard Streamlit
+
+Tambem ha um dashboard local em Streamlit para validar e apresentar as 10 perguntas sem depender do Looker Studio.
+
+Depois de gerar a camada gold, instale as dependencias e execute:
+
+```powershell
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+O app le diretamente os arquivos em `data/gold` e organiza os graficos em cinco abas:
+
+- Visao geral
+- Fundos e captacao
+- Investidores e geografia
+- Macro x fundos
+- Mercado e risco
 ## Google Sheets e Looker Studio
 
 Ao final do pipeline, tambem e gerada uma planilha pronta para importar no Google Sheets:
@@ -106,5 +125,6 @@ docs/prompt_gemini_looker_studio.md
 ## Modelo
 
 O modelo dimensional esta em `docs/modelo.png`.
+
 
 
